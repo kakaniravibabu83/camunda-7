@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_0ua42oe" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.40.1" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.24.0">
+  <bpmn:process id="AmountCheck" name="Amount Check" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1">
+      <bpmn:outgoing>Flow_0waf9vc</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="Gateway_06uzmap" name="Check Amount" default="Flow_1n8mn47">
+      <bpmn:incoming>Flow_0waf9vc</bpmn:incoming>
+      <bpmn:outgoing>Flow_0py162a</bpmn:outgoing>
+      <bpmn:outgoing>Flow_1n8mn47</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0waf9vc" sourceRef="StartEvent_1" targetRef="Gateway_06uzmap" />
+    <bpmn:sequenceFlow id="Flow_0py162a" name="More than 500" sourceRef="Gateway_06uzmap" targetRef="Activity_19weug8">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${amount &gt; 500}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:endEvent id="Event_18gw25i">
+      <bpmn:incoming>Flow_0gkgp7x</bpmn:incoming>
+      <bpmn:incoming>Flow_1n8mn47</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_0gkgp7x" sourceRef="Activity_19weug8" targetRef="Event_18gw25i" />
+    <bpmn:sequenceFlow id="Flow_1n8mn47" sourceRef="Gateway_06uzmap" targetRef="Event_18gw25i" />
+    <bpmn:userTask id="Activity_19weug8" name="Review">
+      <bpmn:incoming>Flow_0py162a</bpmn:incoming>
+      <bpmn:outgoing>Flow_0gkgp7x</bpmn:outgoing>
+    </bpmn:userTask>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="AmountCheck">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="182" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_06uzmap_di" bpmnElement="Gateway_06uzmap" isMarkerVisible="true">
+        <dc:Bounds x="275" y="155" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="265" y="212" width="72" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_18gw25i_di" bpmnElement="Event_18gw25i">
+        <dc:Bounds x="622" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1h87hic_di" bpmnElement="Activity_19weug8">
+        <dc:Bounds x="420" y="140" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0waf9vc_di" bpmnElement="Flow_0waf9vc">
+        <di:waypoint x="218" y="180" />
+        <di:waypoint x="275" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0py162a_di" bpmnElement="Flow_0py162a">
+        <di:waypoint x="325" y="180" />
+        <di:waypoint x="420" y="180" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="339" y="162" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0gkgp7x_di" bpmnElement="Flow_0gkgp7x">
+        <di:waypoint x="520" y="180" />
+        <di:waypoint x="622" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1n8mn47_di" bpmnElement="Flow_1n8mn47">
+        <di:waypoint x="300" y="155" />
+        <di:waypoint x="300" y="100" />
+        <di:waypoint x="640" y="100" />
+        <di:waypoint x="640" y="162" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

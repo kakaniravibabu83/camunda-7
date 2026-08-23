@@ -1,0 +1,86 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: camunda-springboot-app
+
+  # ---------------------------------------------------------------------
+  # MySQL datasource. Defaults below point at a local instance with schema
+  # "camunda" and user "camunda7". Override any of them via env vars
+  # (DB_URL / DB_USERNAME / DB_PASSWORD) instead of editing this file,
+  # especially for the password.
+  # ---------------------------------------------------------------------
+  datasource:
+    url: jdbc:mysql://localhost:3306/camunda?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: camunda7
+    password: admin
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      transaction-isolation: TRANSACTION_READ_COMMITTED
+
+  jpa:
+    hibernate:
+      # DDL for OUR OWN @Entity classes only (e.g. DeploymentLog).
+      # Camunda manages its own schema separately (see camunda.bpm.database below).
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+    show-sql: false
+
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+
+# ---------------------------------------------------------------------
+# Camunda 7 engine configuration
+# ---------------------------------------------------------------------
+camunda:
+  bpm:
+    admin-user:
+      id: admin
+      password: admin
+      first-name: Admin
+      last-name: Administrator
+    filter:
+      create: All tasks
+    auto-deployment-enabled: true
+
+    # "full" so that historic variables remain queryable via the history service even
+    # after a process instance completes and its runtime execution/variables are gone.
+    history-level: full
+    database:
+      type: mysql
+      # Let Camunda create/update its own schema automatically on startup.
+      schema-update: true
+    generic-properties:
+      properties:
+        history-time-to-live: 180
+        skip-isolation-level-check: true
+
+# ---------------------------------------------------------------------
+# Actuator
+# ---------------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,camunda
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+
+logging:
+  level:
+    org.camunda.bpm.engine: INFO
+    com.example.camunda: DEBUG

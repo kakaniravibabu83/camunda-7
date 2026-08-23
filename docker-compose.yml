@@ -1,0 +1,20 @@
+version: "3.8"
+
+# Convenience MySQL instance for local development.
+# Start with:  docker compose up -d
+# Matches the default credentials in src/main/resources/application.yml.
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: camunda-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: camunda
+    ports:
+      - "3306:3306"
+    volumes:
+      - camunda-mysql-data:/var/lib/mysql
+
+volumes:
+  camunda-mysql-data:

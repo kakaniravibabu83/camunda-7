@@ -1,0 +1,31 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:camunda-test;DB_CLOSE_DELAY=-1;NON_KEYWORDS=VALUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: sa
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  devtools:
+    restart:
+      enabled: false
+
+camunda:
+  bpm:
+    admin-user:
+      id: admin
+      password: admin
+    history-level: full
+    database:
+      schema-update: true
+    generic-properties:
+      properties:
+        history-time-to-live: 180
+
+logging:
+  level:
+    org.camunda.bpm.engine: WARN

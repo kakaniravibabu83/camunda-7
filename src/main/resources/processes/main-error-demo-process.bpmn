@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_main_error_demo" targetNamespace="http://camunda.example.com/main-error-demo" exporter="Camunda Modeler" exporterVersion="5.50.1">
+  <bpmn:process id="mainErrorDemoProcess" name="Main Error Demo Process" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1" name="Start">
+      <bpmn:outgoing>Flow_Start</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="ServiceTask_Risky" name="Risky Task" camunda:delegateExpression="${businessErrorSimulatingDelegate}">
+      <bpmn:incoming>Flow_Start</bpmn:incoming>
+      <bpmn:outgoing>Flow_Success</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_Success" name="Completed Successfully">
+      <bpmn:incoming>Flow_Success</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:boundaryEvent id="BoundaryEvent_AnyError" name="Any BPMN Error" attachedToRef="ServiceTask_Risky">
+      <bpmn:outgoing>Flow_ToErrorHandler</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_1" camunda:errorCodeVariable="errorCode" camunda:errorMessageVariable="errorMessage" />
+    </bpmn:boundaryEvent>
+    <bpmn:callActivity id="CallActivity_ErrorHandler" name="Handle Error Generically" calledElement="genericErrorHandlerProcess">
+      <bpmn:extensionElements>
+        <camunda:in source="errorCode" target="errorCode" />
+        <camunda:in source="errorMessage" target="errorMessage" />
+        <camunda:in sourceExpression="${execution.getProcessInstanceId()}" target="sourceProcessInstanceId" />
+        <camunda:in sourceExpression="${execution.getProcessDefinitionId()}" target="sourceProcessDefinitionId" />
+        <camunda:in businessKey="#{execution.processBusinessKey}" />
+        <camunda:out source="errorHandled" target="errorHandled" />
+        <camunda:out source="errorHandledAt" target="errorHandledAt" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToErrorHandler</bpmn:incoming>
+      <bpmn:outgoing>Flow_0hn4u3v</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:endEvent id="EndEvent_ErrorHandled" name="Completed With Error Handled">
+      <bpmn:incoming>Flow_0fojdaa</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Start" sourceRef="StartEvent_1" targetRef="ServiceTask_Risky" />
+    <bpmn:sequenceFlow id="Flow_Success" sourceRef="ServiceTask_Risky" targetRef="EndEvent_Success" />
+    <bpmn:sequenceFlow id="Flow_ToErrorHandler" sourceRef="BoundaryEvent_AnyError" targetRef="CallActivity_ErrorHandler" />
+    <bpmn:sequenceFlow id="Flow_0hn4u3v" sourceRef="CallActivity_ErrorHandler" targetRef="Activity_19sjnnf" />
+    <bpmn:sequenceFlow id="Flow_0fojdaa" sourceRef="Activity_19sjnnf" targetRef="EndEvent_ErrorHandled" />
+    <bpmn:userTask id="Activity_19sjnnf" name="PostError">
+      <bpmn:incoming>Flow_0hn4u3v</bpmn:incoming>
+      <bpmn:outgoing>Flow_0fojdaa</bpmn:outgoing>
+    </bpmn:userTask>
+  </bpmn:process>
+  <bpmn:error id="Error_0vj87hr" name="Error_17t6ru2" />
+  <bpmndi:BPMNDiagram xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="mainErrorDemoProcess">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <omgdc:Bounds x="150" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_Risky_di" bpmnElement="ServiceTask_Risky">
+        <omgdc:Bounds x="240" y="78" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Success_di" bpmnElement="EndEvent_Success">
+        <omgdc:Bounds x="400" y="100" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="378" y="146" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CallActivity_ErrorHandler_di" bpmnElement="CallActivity_ErrorHandler">
+        <omgdc:Bounds x="240" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_ErrorHandled_di" bpmnElement="EndEvent_ErrorHandled">
+        <omgdc:Bounds x="672" y="262" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="650" y="224.5" width="79" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0j9ztvi_di" bpmnElement="Activity_19sjnnf">
+        <omgdc:Bounds x="420" y="240" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BoundaryEvent_AnyError_di" bpmnElement="BoundaryEvent_AnyError">
+        <omgdc:Bounds x="272" y="140" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="248" y="183" width="84" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_di" bpmnElement="Flow_Start">
+        <omgdi:waypoint x="186" y="118" />
+        <omgdi:waypoint x="240" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Success_di" bpmnElement="Flow_Success">
+        <omgdi:waypoint x="340" y="118" />
+        <omgdi:waypoint x="400" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToErrorHandler_di" bpmnElement="Flow_ToErrorHandler">
+        <omgdi:waypoint x="290" y="176" />
+        <omgdi:waypoint x="290" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0hn4u3v_di" bpmnElement="Flow_0hn4u3v">
+        <omgdi:waypoint x="340" y="280" />
+        <omgdi:waypoint x="420" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0fojdaa_di" bpmnElement="Flow_0fojdaa">
+        <omgdi:waypoint x="520" y="280" />
+        <omgdi:waypoint x="672" y="280" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   id="Definitions_generic_error_handler"
+                   targetNamespace="http://camunda.example.com/generic-error-handler">
+
+    <!--
+      Reusable, generic BPMN-error handler.
+
+      This is a standalone process definition, NOT an embedded event subprocess, so it
+      can be invoked via Call Activity from ANY main process — not just the one it's
+      defined in. It expects to be handed the details of an already-caught error as
+      plain input variables (typically captured by an error boundary event with no
+      errorRef, i.e. one that catches ANY error code — see main-error-demo-process.bpmn
+      for the calling side of this pattern).
+
+      Input variables (all optional — the handler is defensive about missing ones):
+        - errorCode                 the BpmnError's error code
+        - errorMessage              the BpmnError's message
+        - sourceProcessInstanceId   id of the process instance where the error occurred
+        - sourceProcessDefinitionId id of the process definition where the error occurred
+
+      Output variables:
+        - errorHandled    boolean, always true if this subprocess completes
+        - errorHandledAt  ISO-8601 timestamp of when the error was handled
+    -->
+    <bpmn:process id="genericErrorHandlerProcess" name="Generic Error Handler" isExecutable="true">
+
+        <bpmn:startEvent id="StartEvent_ErrorReceived" name="Error Received">
+            <bpmn:outgoing>Flow_1</bpmn:outgoing>
+        </bpmn:startEvent>
+
+        <bpmn:serviceTask id="ServiceTask_LogError" name="Log And Handle Error"
+                           camunda:delegateExpression="${genericErrorHandlerDelegate}">
+            <bpmn:incoming>Flow_1</bpmn:incoming>
+            <bpmn:outgoing>Flow_2</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:endEvent id="EndEvent_ErrorLogged" name="Error Logged">
+            <bpmn:incoming>Flow_2</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_ErrorReceived" targetRef="ServiceTask_LogError"/>
+        <bpmn:sequenceFlow id="Flow_2" sourceRef="ServiceTask_LogError" targetRef="EndEvent_ErrorLogged"/>
+    </bpmn:process>
+
+    <bpmndi:BPMNDiagram id="BPMNDiagram_1" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                         xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+                         xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
+        <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="genericErrorHandlerProcess">
+            <bpmndi:BPMNShape id="StartEvent_ErrorReceived_di" bpmnElement="StartEvent_ErrorReceived">
+                <omgdc:Bounds x="150" y="100" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="ServiceTask_LogError_di" bpmnElement="ServiceTask_LogError">
+                <omgdc:Bounds x="260" y="78" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="EndEvent_ErrorLogged_di" bpmnElement="EndEvent_ErrorLogged">
+                <omgdc:Bounds x="440" y="100" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+                <omgdi:waypoint x="186" y="118"/>
+                <omgdi:waypoint x="260" y="118"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+                <omgdi:waypoint x="360" y="118"/>
+                <omgdi:waypoint x="440" y="118"/>
+            </bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+</bpmn:definitions>
