@@ -2,6 +2,9 @@ package com.example.camunda.controller;
 
 import com.example.camunda.dto.StartProcessRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.camunda.bpm.engine.RuntimeService;
+import org.camunda.bpm.engine.runtime.Execution;
+import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -10,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -33,11 +37,64 @@ class MainErrorDemoProcessTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private RuntimeService runtimeService;
+
     private StartProcessRequest startRequest(Map<String, Object> variables) {
         StartProcessRequest request = new StartProcessRequest();
         request.setProcessDefinitionKey("mainErrorDemoProcess");
         request.setVariables(variables);
         return request;
+    }
+
+    /**
+     * DIAGNOSTIC (temporary): pinpoints exactly which activity mainErrorDemoProcess is
+     * parked at when it doesn't complete synchronously as expected, and whether the
+     * called genericErrorHandlerProcess sub-instance was even created. Run with
+     * {@code mvn test -Dtest=MainErrorDemoProcessTest#diagnostic_whereIsTheProcessStuck}
+     * and read the console output (not just pass/fail) — this test always passes, it
+     * only prints information.
+     */
+    @Test
+    void diagnostic_whereIsTheProcessStuck() {
+        ProcessInstance instance = runtimeService.startProcessInstanceByKey("mainErrorDemoProcess");
+        System.out.println("=== DIAGNOSTIC: mainErrorDemoProcess instance " + instance.getId() + " ===");
+        System.out.println("isEnded() on returned object: " + instance.isEnded());
+
+        boolean stillInRuntime = runtimeService.createProcessInstanceQuery()
+                .processInstanceId(instance.getId()).count() > 0;
+        System.out.println("Still present in runtime tables: " + stillInRuntime);
+
+        if (stillInRuntime) {
+            List<String> activeActivityIds = runtimeService.getActiveActivityIds(instance.getId());
+            System.out.println("Active activity ids on main instance: " + activeActivityIds);
+
+            List<Execution> executions = runtimeService.createExecutionQuery()
+                    .processInstanceId(instance.getId()).list();
+            System.out.println("Execution count: " + executions.size());
+            for (Execution e : executions) {
+                System.out.println("  execution id=" + e.getId() + " isEnded=" + e.isEnded());
+            }
+
+            List<ProcessInstance> subInstances = runtimeService.createProcessInstanceQuery()
+                    .superProcessInstanceId(instance.getId()).list();
+            System.out.println("Called sub-process instances found: " + subInstances.size());
+            for (ProcessInstance sub : subInstances) {
+                System.out.println("  sub-instance id=" + sub.getId()
+                        + " processDefinitionId=" + sub.getProcessDefinitionId()
+                        + " isEnded=" + sub.isEnded());
+                boolean subStillInRuntime = runtimeService.createProcessInstanceQuery()
+                        .processInstanceId(sub.getId()).count() > 0;
+                if (subStillInRuntime) {
+                    System.out.println("  sub-instance active activity ids: "
+                            + runtimeService.getActiveActivityIds(sub.getId()));
+                }
+            }
+
+            Map<String, Object> vars = runtimeService.getVariables(instance.getId());
+            System.out.println("Current variables on main instance: " + vars);
+        }
+        System.out.println("=== END DIAGNOSTIC ===");
     }
 
     @Test

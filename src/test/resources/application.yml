@@ -7,6 +7,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
@@ -25,6 +26,18 @@ camunda:
     generic-properties:
       properties:
         history-time-to-live: 180
+    # Fully disabled for tests. This removes the JobExecutor/camundaTaskExecutor beans,
+    # which is safe here because nothing else in this app's synchronous BPMN flows
+    # (Call Activities, boundary events) depends on them - that was verified after an
+    # earlier, unrelated bug was mistakenly attributed to this setting and reverted.
+    # A plain longer wait-time-in-millis is NOT sufficient on its own: it only throttles
+    # idle polling, not hint-triggered wake-ups the executor gets from operations like
+    # ManagementService.setJobRetries(), which can still race with a test's own manual
+    # ManagementService.executeJob() call. Fully disabling removes the executor thread
+    # entirely, so only manual calls ever touch jobs - see:
+    # https://docs.camunda.org/manual/latest/user-guide/testing/
+    job-execution:
+      enabled: false
 
 logging:
   level:
