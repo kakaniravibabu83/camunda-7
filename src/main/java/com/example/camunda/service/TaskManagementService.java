@@ -1,6 +1,8 @@
 package com.example.camunda.service;
 
+import com.example.camunda.dto.BulkTaskOperationResult;
 import com.example.camunda.dto.TaskInfo;
+import com.example.camunda.dto.TaskOperationFailure;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.camunda.bpm.engine.TaskAlreadyClaimedException;
@@ -13,8 +15,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -102,6 +106,58 @@ public class TaskManagementService {
         return toTaskInfo(requireTask(taskId));
     }
 
+    /**
+     * Assigns multiple tasks to the same user in one call. Camunda's engine has no
+     * native bulk-assign operation, so each task id is processed individually; a
+     * single bad/unknown id records a failure for that id but does not abort the rest
+     * of the batch.
+     */
+    public BulkTaskOperationResult bulkAssign(List<String> taskIds, String userId) {
+        requireTaskIds(taskIds);
+        requireUserId(userId);
+        return processBulk(taskIds, taskId -> taskService.setAssignee(taskId, userId));
+    }
+
+    /** Clears the assignee on multiple tasks in one call, with the same per-task partial-failure semantics as {@link #bulkAssign}. */
+    public BulkTaskOperationResult bulkUnassign(List<String> taskIds) {
+        requireTaskIds(taskIds);
+        return processBulk(taskIds, taskId -> taskService.setAssignee(taskId, null));
+    }
+
+    private BulkTaskOperationResult processBulk(List<String> taskIds, Consumer<String> operation) {
+        List<String> successfulTaskIds = new ArrayList<>();
+        List<TaskOperationFailure> failures = new ArrayList<>();
+
+        for (String taskId : taskIds) {
+            if (!StringUtils.hasText(taskId)) {
+                failures.add(TaskOperationFailure.builder()
+                        .taskId(taskId)
+                        .errorMessage("Task id must not be blank.")
+                        .build());
+                continue;
+            }
+            try {
+                operation.accept(taskId);
+                successfulTaskIds.add(taskId);
+            } catch (RuntimeException ex) {
+                failures.add(TaskOperationFailure.builder()
+                        .taskId(taskId)
+                        .errorMessage(ex.getMessage())
+                        .build());
+            }
+        }
+
+        log.info("Bulk task operation processed {} id(s): {} succeeded, {} failed",
+                taskIds.size(), successfulTaskIds.size(), failures.size());
+
+        return BulkTaskOperationResult.builder()
+                .successCount(successfulTaskIds.size())
+                .failureCount(failures.size())
+                .successfulTaskIds(successfulTaskIds)
+                .failures(failures)
+                .build();
+    }
+
     public void complete(String taskId, Map<String, Object> variables) {
         // taskService.complete throws for an unknown taskId itself.
         if (CollectionUtils.isEmpty(variables)) {
@@ -154,6 +210,12 @@ public class TaskManagementService {
     private void requireUserId(String userId) {
         if (!StringUtils.hasText(userId)) {
             throw new IllegalArgumentException("'userId' is required.");
+        }
+    }
+
+    private void requireTaskIds(List<String> taskIds) {
+        if (CollectionUtils.isEmpty(taskIds)) {
+            throw new IllegalArgumentException("'taskIds' is required and must not be empty.");
         }
     }
 

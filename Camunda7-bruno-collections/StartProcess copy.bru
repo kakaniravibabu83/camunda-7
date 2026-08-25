@@ -1,0 +1,24 @@
+meta {
+  name: StartProcess copy
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://localhost:8080/api/camunda/process-instances/start
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "processDefinitionKey": "AmountCheck",
+    "businessKey": "ORDER-1008",
+    "variables": { "amount": 800, "approved": false, "requester": "jane" }
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

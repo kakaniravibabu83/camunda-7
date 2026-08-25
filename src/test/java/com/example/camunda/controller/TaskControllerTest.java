@@ -1,5 +1,7 @@
 package com.example.camunda.controller;
 
+import com.example.camunda.dto.BulkAssignRequest;
+import com.example.camunda.dto.BulkUnassignRequest;
 import com.example.camunda.dto.CompleteTaskRequest;
 import com.example.camunda.dto.UserIdRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,9 +15,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -223,5 +229,145 @@ class TaskControllerTest {
     void complete_unknownTask_returnsNotFound() throws Exception {
         mockMvc.perform(post("/api/camunda/tasks/{taskId}/complete", "does-not-exist"))
                 .andExpect(status().isNotFound());
+    }
+
+    // ---------------------------------------------------------------- bulk assign/unassign
+
+    @Test
+    void bulkAssign_assignsAllTasksToTheSameUser() throws Exception {
+        String taskId1 = startSampleProcessAndGetTaskId();
+        String taskId2 = startSampleProcessAndGetTaskId();
+        String taskId3 = startSampleProcessAndGetTaskId();
+
+        BulkAssignRequest request = new BulkAssignRequest(Arrays.asList(taskId1, taskId2, taskId3), "bob");
+
+        mockMvc.perform(post("/api/camunda/tasks/bulk-assign")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successCount").value(3))
+                .andExpect(jsonPath("$.failureCount").value(0))
+                .andExpect(jsonPath("$.successfulTaskIds", org.hamcrest.Matchers.containsInAnyOrder(taskId1, taskId2, taskId3)))
+                .andExpect(jsonPath("$.failures").isEmpty());
+
+        for (String taskId : List.of(taskId1, taskId2, taskId3)) {
+            assertEquals("bob", taskService.createTaskQuery().taskId(taskId).singleResult().getAssignee());
+        }
+    }
+
+    @Test
+    void bulkAssign_withOneUnknownTaskId_reportsPartialFailureWithoutFailingTheRest() throws Exception {
+        String taskId1 = startSampleProcessAndGetTaskId();
+        String taskId2 = startSampleProcessAndGetTaskId();
+
+        BulkAssignRequest request = new BulkAssignRequest(
+                Arrays.asList(taskId1, "does-not-exist", taskId2), "jane");
+
+        mockMvc.perform(post("/api/camunda/tasks/bulk-assign")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successCount").value(2))
+                .andExpect(jsonPath("$.failureCount").value(1))
+                .andExpect(jsonPath("$.successfulTaskIds", org.hamcrest.Matchers.containsInAnyOrder(taskId1, taskId2)))
+                .andExpect(jsonPath("$.failures[0].taskId").value("does-not-exist"))
+                .andExpect(jsonPath("$.failures[0].errorMessage").isNotEmpty());
+
+        assertEquals("jane", taskService.createTaskQuery().taskId(taskId1).singleResult().getAssignee());
+        assertEquals("jane", taskService.createTaskQuery().taskId(taskId2).singleResult().getAssignee());
+    }
+
+    @Test
+    void bulkAssign_missingUserId_returnsBadRequest() throws Exception {
+        String taskId = startSampleProcessAndGetTaskId();
+        BulkAssignRequest request = new BulkAssignRequest(List.of(taskId), null);
+
+        mockMvc.perform(post("/api/camunda/tasks/bulk-assign")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void bulkAssign_emptyTaskIdsList_returnsBadRequest() throws Exception {
+        BulkAssignRequest request = new BulkAssignRequest(List.of(), "bob");
+
+        mockMvc.perform(post("/api/camunda/tasks/bulk-assign")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void bulkAssign_missingTaskIdsList_returnsBadRequest() throws Exception {
+        BulkAssignRequest request = new BulkAssignRequest(null, "bob");
+
+        mockMvc.perform(post("/api/camunda/tasks/bulk-assign")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void bulkUnassign_clearsAssigneeOnAllTasks() throws Exception {
+        String taskId1 = startSampleProcessAndGetTaskId();
+        String taskId2 = startSampleProcessAndGetTaskId();
+        taskService.setAssignee(taskId1, "carol");
+        taskService.setAssignee(taskId2, "carol");
+
+        BulkUnassignRequest request = new BulkUnassignRequest(Arrays.asList(taskId1, taskId2));
+
+        mockMvc.perform(post("/api/camunda/tasks/bulk-unassign")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successCount").value(2))
+                .andExpect(jsonPath("$.failureCount").value(0));
+
+        for (String taskId : List.of(taskId1, taskId2)) {
+            assertNull(taskService.createTaskQuery().taskId(taskId).singleResult().getAssignee());
+        }
+    }
+
+    @Test
+    void bulkUnassign_withOneUnknownTaskId_reportsPartialFailureWithoutFailingTheRest() throws Exception {
+        String taskId = startSampleProcessAndGetTaskId();
+        taskService.setAssignee(taskId, "carol");
+
+        BulkUnassignRequest request = new BulkUnassignRequest(Arrays.asList(taskId, "does-not-exist"));
+
+        mockMvc.perform(post("/api/camunda/tasks/bulk-unassign")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successCount").value(1))
+                .andExpect(jsonPath("$.failureCount").value(1))
+                .andExpect(jsonPath("$.successfulTaskIds[0]").value(taskId))
+                .andExpect(jsonPath("$.failures[0].taskId").value("does-not-exist"));
+
+        assertNull(taskService.createTaskQuery().taskId(taskId).singleResult().getAssignee());
+    }
+
+    @Test
+    void bulkUnassign_emptyTaskIdsList_returnsBadRequest() throws Exception {
+        BulkUnassignRequest request = new BulkUnassignRequest(List.of());
+
+        mockMvc.perform(post("/api/camunda/tasks/bulk-unassign")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void bulkUnassign_blankTaskIdInList_isReportedAsFailureNotException() throws Exception {
+        String taskId = startSampleProcessAndGetTaskId();
+        BulkUnassignRequest request = new BulkUnassignRequest(Arrays.asList(taskId, "   "));
+
+        mockMvc.perform(post("/api/camunda/tasks/bulk-unassign")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successCount").value(1))
+                .andExpect(jsonPath("$.failureCount").value(1));
     }
 }

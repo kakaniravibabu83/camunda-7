@@ -74,10 +74,10 @@ Once the password is set:
    mvn spring-boot:run
    ```
 2. The app starts on `http://localhost:8080`:
-    - Custom generic REST API: `http://localhost:8080/api/camunda/**`
-    - Camunda's own REST API: `http://localhost:8080/engine-rest/**`
-    - Camunda Cockpit/Tasklist/Admin: `http://localhost:8080/camunda/` (login `admin` / `admin`)
-    - Actuator: `http://localhost:8080/actuator/health`
+   - Custom generic REST API: `http://localhost:8080/api/camunda/**`
+   - Camunda's own REST API: `http://localhost:8080/engine-rest/**`
+   - Camunda Cockpit/Tasklist/Admin: `http://localhost:8080/camunda/` (login `admin` / `admin`)
+   - Actuator: `http://localhost:8080/actuator/health`
 
 Datasource credentials can also be overridden entirely with `DB_URL` if your MySQL isn't
 on `localhost:3306`.
@@ -205,6 +205,32 @@ POST /api/camunda/tasks/{taskId}/claim
 **Unclaim:**
 ```
 POST /api/camunda/tasks/{taskId}/unclaim
+```
+
+**Bulk assign** — assign multiple tasks to the same user in one call. A single unknown/
+invalid task id does not fail the whole batch; the response reports success/failure per
+id (Camunda's engine has no native bulk-assign operation, so this loops per task
+internally):
+```
+POST /api/camunda/tasks/bulk-assign
+{ "taskIds": ["task-1", "task-2", "task-3"], "userId": "jane" }
+```
+Response:
+```json
+{
+  "successCount": 2,
+  "failureCount": 1,
+  "successfulTaskIds": ["task-1", "task-3"],
+  "failures": [
+    { "taskId": "task-2", "errorMessage": "..." }
+  ]
+}
+```
+
+**Bulk unassign** — same partial-failure semantics as bulk assign:
+```
+POST /api/camunda/tasks/bulk-unassign
+{ "taskIds": ["task-1", "task-2", "task-3"] }
 ```
 
 **Read task variables:**

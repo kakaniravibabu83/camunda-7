@@ -1,5 +1,8 @@
 package com.example.camunda.controller;
 
+import com.example.camunda.dto.BulkAssignRequest;
+import com.example.camunda.dto.BulkTaskOperationResult;
+import com.example.camunda.dto.BulkUnassignRequest;
 import com.example.camunda.dto.CompleteTaskRequest;
 import com.example.camunda.dto.TaskInfo;
 import com.example.camunda.dto.UserIdRequest;
@@ -90,6 +93,30 @@ public class TaskController {
     @PostMapping("/api/camunda/tasks/{taskId}/unclaim")
     public TaskInfo unclaim(@PathVariable String taskId) {
         return taskManagementService.unclaim(taskId);
+    }
+
+    /**
+     * Assign multiple tasks to the same user in one call. A single unknown/invalid task
+     * id does not fail the whole batch — the response reports success/failure per id.
+     *
+     * POST /api/camunda/tasks/bulk-assign
+     * { "taskIds": ["task-1", "task-2", "task-3"], "userId": "jane" }
+     */
+    @PostMapping("/api/camunda/tasks/bulk-assign")
+    public BulkTaskOperationResult bulkAssign(@RequestBody BulkAssignRequest request) {
+        return taskManagementService.bulkAssign(request.getTaskIds(), request.getUserId());
+    }
+
+    /**
+     * Clear the assignee on multiple tasks in one call. Same partial-failure semantics
+     * as {@link #bulkAssign}.
+     *
+     * POST /api/camunda/tasks/bulk-unassign
+     * { "taskIds": ["task-1", "task-2", "task-3"] }
+     */
+    @PostMapping("/api/camunda/tasks/bulk-unassign")
+    public BulkTaskOperationResult bulkUnassign(@RequestBody BulkUnassignRequest request) {
+        return taskManagementService.bulkUnassign(request.getTaskIds());
     }
 
     /**

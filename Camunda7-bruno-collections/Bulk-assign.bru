@@ -1,0 +1,28 @@
+meta {
+  name: Bulk-assign
+  type: http
+  seq: 4
+}
+
+post {
+  url: http://localhost:8080/api/camunda/tasks/bulk-assign
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "taskIds": [
+      "81cd2b86-a03a-11f1-ac13-00ffb356ce41",
+      "7b6faf0b-a03a-11f1-ac13-00ffb356ce41",
+      "7560c7c0-a03a-11f1-ac13-00ffb356ce41"
+    ],
+    "userId":"admin"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

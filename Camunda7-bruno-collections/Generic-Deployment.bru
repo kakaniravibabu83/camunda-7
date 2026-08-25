@@ -1,0 +1,25 @@
+meta {
+  name: Generic-Deployment
+  type: http
+  seq: 4
+}
+
+post {
+  url: http://localhost:8080/api/camunda/deployments
+  body: multipartForm
+  auth: inherit
+}
+
+headers {
+  Content-Type: multipart/form-data
+}
+
+body:multipart-form {
+  file: @file(C:\Users\Ravi Babu Kakani\Downloads\camunda-springboot-app\camunda-springboot-app\src\main\resources\processes\AmountCheck.bpmn)
+  deploymentName: My Deployment
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
