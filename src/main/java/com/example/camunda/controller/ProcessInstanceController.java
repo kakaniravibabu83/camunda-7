@@ -46,6 +46,21 @@ public class ProcessInstanceController {
         return processInstanceService.getVariables(processInstanceId);
     }
 
+    /**
+     * Add one or more new variables, or update the value of existing ones, on a running
+     * process instance. Existing variables not included in the body are left untouched.
+     * Only works while the process instance is still active — 409 if it has already
+     * ended.
+     *
+     * POST /api/camunda/process-instances/{processInstanceId}/variables
+     * { "amount": 300.00, "approved": true }
+     */
+    @PostMapping("/api/camunda/process-instances/{processInstanceId}/variables")
+    public Map<String, Object> setVariables(@PathVariable String processInstanceId,
+                                             @RequestBody Map<String, Object> variables) {
+        return processInstanceService.setVariables(processInstanceId, variables);
+    }
+
     @GetMapping("/api/camunda/process-instances/{processInstanceId}")
     public ProcessInstanceStatusResponse getInstance(@PathVariable String processInstanceId) {
         return processInstanceService.getStatus(processInstanceId);
