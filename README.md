@@ -172,6 +172,14 @@ GET /api/camunda/process-instances/{processInstanceId}
 GET /api/camunda/process-instances/{processInstanceId}/variables
 ```
 
+**Add or update variables** on a running process instance — existing variables not
+included in the body are left untouched. Only works while the instance is still active
+(`409 Conflict` if it has already ended):
+```
+POST /api/camunda/process-instances/{processInstanceId}/variables
+{ "amount": 300.00, "approved": true }
+```
+
 ### 4. User tasks — generic across every process definition
 
 **Search / list tasks** — all query params optional and combine as AND filters:
@@ -358,6 +366,44 @@ The response's `variables` will include `errorCode`, `errorMessage`, `errorHandl
 To reuse this pattern in your own processes: add a boundary error event (no `errorRef`)
 to any risky activity, capture `errorCode`/`errorMessage` the same way, and add a Call
 Activity to `genericErrorHandlerProcess` — no changes to the subprocess itself required.
+
+### 7. DMN-driven dynamic routing (Call Activity + calledElementExpression)
+
+Four auto-deployed artifacts demonstrate evaluating a DMN decision and using its result
+to dynamically choose which process to invoke next — no gateway/branching needed in the
+calling process itself:
+
+- **`classification-decision.dmn`** (decision key `classificationDecision`) — a decision
+  table classifying a `requestAmount` into `STANDARD` / `PRIORITY` / `URGENT`
+  (`hitPolicy="FIRST"`, thresholds at 1,000 and 10,000).
+- **`classification-routing-process.bpmn`** (key `classificationRoutingProcess`) — the
+  main workflow:
+  1. A **Business Rule Task** evaluates `classificationDecision` and writes its single
+     scalar result straight into the `classificationType` process variable
+     (`camunda:mapDecisionResult="singleEntry"`).
+  2. A **Call Activity** uses `calledElementExpression` (instead of a static
+     `calledElement`) to pick which process to invoke **at runtime** based on
+     `classificationType`:
+     ```
+     ${classificationType == 'URGENT' ? 'urgentHandlerProcess'
+        : (classificationType == 'PRIORITY' ? 'priorityHandlerProcess' : 'standardHandlerProcess')}
+     ```
+- **`standard-handler-process.bpmn` / `priority-handler-process.bpmn` /
+  `urgent-handler-process.bpmn`** — the three possible target processes (keys
+  `standardHandlerProcess`, `priorityHandlerProcess`, `urgentHandlerProcess`). Each just
+  records which handler ran (`handledBy`), mapped back to the caller via `camunda:out`,
+  so the routing can be verified end-to-end.
+
+Test it with the existing generic process-start API:
+```bash
+curl -X POST http://localhost:8080/api/camunda/process-instances/start \
+     -H "Content-Type: application/json" \
+     -d '{"processDefinitionKey": "classificationRoutingProcess", "variables": {"requestAmount": 50000}}'
+# -> variables.classificationType = "URGENT", variables.handledBy = "urgent-handler"
+```
+
+All five files (one DMN, four BPMN) open cleanly in Camunda Desktop Modeler — each has
+complete diagram interchange info, and the DMN includes its own DMNDI diagram section.
 
 ## Notes
 

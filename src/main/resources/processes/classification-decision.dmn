@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_classification"
+             name="Classification Decision Definitions"
+             namespace="http://camunda.example.com/classification"
+             exporter="camunda-springboot-app"
+             exporterVersion="1.0.0">
+
+    <!--
+      Classifies an incoming request by requestAmount into STANDARD / PRIORITY / URGENT.
+      hitPolicy="FIRST": rules are evaluated top-to-bottom, the first matching rule wins,
+      so the URGENT (highest) threshold is checked first, then PRIORITY, with a
+      catch-all "-" (any) rule falling back to STANDARD, including when requestAmount is
+      missing/null (no rule with a numeric comparison matches null, so it falls through
+      to the catch-all).
+    -->
+    <decision id="classificationDecision" name="Classification Decision">
+        <decisionTable id="DecisionTable_1" hitPolicy="FIRST">
+            <input id="Input_1" label="Request Amount">
+                <inputExpression id="InputExpression_1" typeRef="number">
+                    <text>requestAmount</text>
+                </inputExpression>
+            </input>
+            <output id="Output_1" label="Classification Type" name="classificationType" typeRef="string"/>
+
+            <rule id="Rule_Urgent">
+                <inputEntry id="InputEntry_Urgent">
+                    <text>&gt;= 10000</text>
+                </inputEntry>
+                <outputEntry id="OutputEntry_Urgent">
+                    <text>"URGENT"</text>
+                </outputEntry>
+            </rule>
+            <rule id="Rule_Priority">
+                <inputEntry id="InputEntry_Priority">
+                    <text>&gt;= 1000</text>
+                </inputEntry>
+                <outputEntry id="OutputEntry_Priority">
+                    <text>"PRIORITY"</text>
+                </outputEntry>
+            </rule>
+            <rule id="Rule_Standard">
+                <inputEntry id="InputEntry_Standard">
+                    <text>-</text>
+                </inputEntry>
+                <outputEntry id="OutputEntry_Standard">
+                    <text>"STANDARD"</text>
+                </outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <dmndi:DMNDI>
+        <dmndi:DMNDiagram id="DMNDiagram_1">
+            <dmndi:DMNShape id="DMNShape_classificationDecision" dmnElementRef="classificationDecision">
+                <dc:Bounds height="80" width="180" x="160" y="100"/>
+            </dmndi:DMNShape>
+        </dmndi:DMNDiagram>
+    </dmndi:DMNDI>
+</definitions>
