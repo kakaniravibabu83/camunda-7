@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_case_management" targetNamespace="http://camunda.example.com/case-management" exporter="Camunda Modeler" exporterVersion="5.50.1">
+  <bpmn:process id="caseManagementProcess" name="Case Management Process" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1" name="Case Opened">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:subProcess id="SubProcess_CaseTasks" name="Case Tasks (triggered on demand)">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:startEvent id="StartEvent_Sub" name="Tasks Start">
+        <bpmn:outgoing>SubFlow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:exclusiveGateway id="Gateway_Entry" name="Entry" default="SubFlow_ToSam">
+        <bpmn:incoming>SubFlow_1</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_ToSam</bpmn:outgoing>
+        <bpmn:outgoing>SubFlow_ToBusinessConfirmation</bpmn:outgoing>
+        <bpmn:outgoing>SubFlow_ToLegalReview</bpmn:outgoing>
+        <bpmn:outgoing>SubFlow_ToBusinessApproval</bpmn:outgoing>
+        <bpmn:outgoing>SubFlow_ToFinanceApproval</bpmn:outgoing>
+        <bpmn:outgoing>SubFlow_ToProcurement</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:userTask id="UserTask_Sam" name="SAM">
+        <bpmn:incoming>SubFlow_ToSam</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_FromSam</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:userTask id="UserTask_BusinessConfirmation" name="Business Confirmation">
+        <bpmn:incoming>SubFlow_ToBusinessConfirmation</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_FromBusinessConfirmation</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:userTask id="UserTask_LegalReview" name="Legal Review">
+        <bpmn:incoming>SubFlow_ToLegalReview</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_FromLegalReview</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:userTask id="UserTask_BusinessApproval" name="Business Approval">
+        <bpmn:incoming>SubFlow_ToBusinessApproval</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_FromBusinessApproval</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:userTask id="UserTask_FinanceApproval" name="Finance Approval">
+        <bpmn:incoming>SubFlow_ToFinanceApproval</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_FromFinanceApproval</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:userTask id="UserTask_Procurement" name="Procurement">
+        <bpmn:incoming>SubFlow_ToProcurement</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_FromProcurement</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="EndEvent_Sub" name="Tasks Done">
+        <bpmn:incoming>SubFlow_FromSam</bpmn:incoming>
+        <bpmn:incoming>SubFlow_FromBusinessConfirmation</bpmn:incoming>
+        <bpmn:incoming>SubFlow_FromLegalReview</bpmn:incoming>
+        <bpmn:incoming>SubFlow_FromBusinessApproval</bpmn:incoming>
+        <bpmn:incoming>SubFlow_FromFinanceApproval</bpmn:incoming>
+        <bpmn:incoming>SubFlow_FromProcurement</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="SubFlow_1" sourceRef="StartEvent_Sub" targetRef="Gateway_Entry" />
+      <bpmn:sequenceFlow id="SubFlow_ToSam" name="default" sourceRef="Gateway_Entry" targetRef="UserTask_Sam" />
+      <bpmn:sequenceFlow id="SubFlow_ToBusinessConfirmation" sourceRef="Gateway_Entry" targetRef="UserTask_BusinessConfirmation">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="SubFlow_ToLegalReview" sourceRef="Gateway_Entry" targetRef="UserTask_LegalReview">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="SubFlow_ToBusinessApproval" sourceRef="Gateway_Entry" targetRef="UserTask_BusinessApproval">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="SubFlow_ToFinanceApproval" sourceRef="Gateway_Entry" targetRef="UserTask_FinanceApproval">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="SubFlow_ToProcurement" sourceRef="Gateway_Entry" targetRef="UserTask_Procurement">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="SubFlow_FromSam" sourceRef="UserTask_Sam" targetRef="EndEvent_Sub" />
+      <bpmn:sequenceFlow id="SubFlow_FromBusinessConfirmation" sourceRef="UserTask_BusinessConfirmation" targetRef="EndEvent_Sub" />
+      <bpmn:sequenceFlow id="SubFlow_FromLegalReview" sourceRef="UserTask_LegalReview" targetRef="EndEvent_Sub" />
+      <bpmn:sequenceFlow id="SubFlow_FromBusinessApproval" sourceRef="UserTask_BusinessApproval" targetRef="EndEvent_Sub" />
+      <bpmn:sequenceFlow id="SubFlow_FromFinanceApproval" sourceRef="UserTask_FinanceApproval" targetRef="EndEvent_Sub" />
+      <bpmn:sequenceFlow id="SubFlow_FromProcurement" sourceRef="UserTask_Procurement" targetRef="EndEvent_Sub" />
+    </bpmn:subProcess>
+    <bpmn:endEvent id="EndEvent_1" name="Case Closed">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="SubProcess_CaseTasks" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_CaseTasks" targetRef="EndEvent_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="caseManagementProcess">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <omgdc:Bounds x="150" y="417" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="135" y="463" width="68" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+        <omgdc:Bounds x="1382" y="402" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="1369" y="448" width="63" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess_CaseTasks_di" bpmnElement="SubProcess_CaseTasks" isExpanded="true">
+        <omgdc:Bounds x="250" y="80" width="1050" height="710" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_Sub_di" bpmnElement="StartEvent_Sub">
+        <omgdc:Bounds x="302" y="417" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="293" y="453" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Entry_di" bpmnElement="Gateway_Entry" isMarkerVisible="true">
+        <omgdc:Bounds x="375" y="410" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="387" y="386" width="26" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Sub_di" bpmnElement="EndEvent_Sub">
+        <omgdc:Bounds x="1152" y="417" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="1198" y="428" width="58" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_BusinessConfirmation_di" bpmnElement="UserTask_BusinessConfirmation">
+        <omgdc:Bounds x="680" y="230" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_LegalReview_di" bpmnElement="UserTask_LegalReview">
+        <omgdc:Bounds x="680" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_BusinessApproval_di" bpmnElement="UserTask_BusinessApproval">
+        <omgdc:Bounds x="680" y="450" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_FinanceApproval_di" bpmnElement="UserTask_FinanceApproval">
+        <omgdc:Bounds x="680" y="560" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_Sam_di" bpmnElement="UserTask_Sam">
+        <omgdc:Bounds x="680" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_Procurement_di" bpmnElement="UserTask_Procurement">
+        <omgdc:Bounds x="680" y="670" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SubFlow_1_di" bpmnElement="SubFlow_1">
+        <omgdi:waypoint x="338" y="435" />
+        <omgdi:waypoint x="375" y="435" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow_ToSam_di" bpmnElement="SubFlow_ToSam">
+        <omgdi:waypoint x="390" y="420" />
+        <omgdi:waypoint x="390" y="160" />
+        <omgdi:waypoint x="680" y="160" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="370" y="267" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow_ToBusinessConfirmation_di" bpmnElement="SubFlow_ToBusinessConfirmation">
+        <omgdi:waypoint x="425" y="435" />
+        <omgdi:waypoint x="440" y="435" />
+        <omgdi:waypoint x="440" y="270" />
+        <omgdi:waypoint x="680" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow_ToLegalReview_di" bpmnElement="SubFlow_ToLegalReview">
+        <omgdi:waypoint x="425" y="435" />
+        <omgdi:waypoint x="480" y="435" />
+        <omgdi:waypoint x="480" y="380" />
+        <omgdi:waypoint x="680" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow_ToBusinessApproval_di" bpmnElement="SubFlow_ToBusinessApproval">
+        <omgdi:waypoint x="425" y="435" />
+        <omgdi:waypoint x="570" y="435" />
+        <omgdi:waypoint x="570" y="490" />
+        <omgdi:waypoint x="680" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow_ToFinanceApproval_di" bpmnElement="SubFlow_ToFinanceApproval">
+        <omgdi:waypoint x="400" y="460" />
+        <omgdi:waypoint x="400" y="600" />
+        <omgdi:waypoint x="680" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow_ToProcurement_di" bpmnElement="SubFlow_ToProcurement">
+        <omgdi:waypoint x="425" y="435" />
+        <omgdi:waypoint x="460" y="435" />
+        <omgdi:waypoint x="460" y="710" />
+        <omgdi:waypoint x="680" y="710" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow_FromSam_di" bpmnElement="SubFlow_FromSam">
+        <omgdi:waypoint x="780" y="160" />
+        <omgdi:waypoint x="1170" y="160" />
+        <omgdi:waypoint x="1170" y="417" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow_FromBusinessConfirmation_di" bpmnElement="SubFlow_FromBusinessConfirmation">
+        <omgdi:waypoint x="780" y="270" />
+        <omgdi:waypoint x="1152" y="270" />
+        <omgdi:waypoint x="1152" y="435" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow_FromLegalReview_di" bpmnElement="SubFlow_FromLegalReview">
+        <omgdi:waypoint x="780" y="349" />
+        <omgdi:waypoint x="846" y="349" />
+        <omgdi:waypoint x="846" y="520" />
+        <omgdi:waypoint x="1170" y="520" />
+        <omgdi:waypoint x="1170" y="453" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow_FromBusinessApproval_di" bpmnElement="SubFlow_FromBusinessApproval">
+        <omgdi:waypoint x="780" y="521" />
+        <omgdi:waypoint x="846" y="521" />
+        <omgdi:waypoint x="846" y="424" />
+        <omgdi:waypoint x="1156" y="424" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow_FromFinanceApproval_di" bpmnElement="SubFlow_FromFinanceApproval">
+        <omgdi:waypoint x="780" y="600" />
+        <omgdi:waypoint x="1170" y="600" />
+        <omgdi:waypoint x="1170" y="453" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow_FromProcurement_di" bpmnElement="SubFlow_FromProcurement">
+        <omgdi:waypoint x="780" y="710" />
+        <omgdi:waypoint x="1090" y="710" />
+        <omgdi:waypoint x="1090" y="435" />
+        <omgdi:waypoint x="1152" y="435" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <omgdi:waypoint x="186" y="435" />
+        <omgdi:waypoint x="250" y="435" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <omgdi:waypoint x="1300" y="420" />
+        <omgdi:waypoint x="1382" y="420" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

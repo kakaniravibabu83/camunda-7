@@ -405,6 +405,97 @@ curl -X POST http://localhost:8080/api/camunda/process-instances/start \
 All five files (one DMN, four BPMN) open cleanly in Camunda Desktop Modeler — each has
 complete diagram interchange info, and the DMN includes its own DMNDI diagram section.
 
+### 8. On-demand case management (external UI triggers tasks in any order)
+
+`case-management-process.bpmn` (key `caseManagementProcess`) models one process instance
+per "case", where an external case management UI decides **at runtime** which task to
+create next — not the process definition. This intentionally avoids Camunda 7's ad-hoc
+sub-process BPMN construct, which has no reliable runtime support in the Camunda 7 engine
+(only in Camunda 8/Zeebe, a different product). Instead it uses
+`RuntimeService#createProcessInstanceModification` — Camunda 7's actual, documented
+mechanism for instantiating any named activity in a running process instance on demand —
+exposed generically as two new endpoints:
+
+```
+POST /api/camunda/process-instances/{processInstanceId}/trigger-activity
+{ "activityId": "UserTask_LegalReview", "variables": { "note": "please expedite" } }
+```
+Creates the named activity (its BPMN element id, not its display name) right now,
+regardless of the process's own default flow. `variables` is optional. Returns the
+resulting task(s). Can be called any number of times, in any order, for any of the five
+task activity ids below.
+
+```
+POST /api/camunda/process-instances/{processInstanceId}/cancel-activity
+{ "activityId": "SubProcess_CaseTasks" }
+```
+Cancels all currently-open instances of the named activity in one call, regardless of
+what's active inside it — used here to close a case.
+
+**Structure:** starting a case auto-creates a **SAM** task by default (the gateway's
+default branch — this keeps the process instance genuinely alive as a wait-state rather
+than doing nothing at all). SAM's task is never touched by anything else and stays open
+for the whole life of the case, so after any on-demand task completes, control is simply
+"back with SAM" because SAM's task was never interrupted. The five task branches
+(`UserTask_BusinessConfirmation`, `UserTask_LegalReview`, `UserTask_BusinessApproval`,
+`UserTask_FinanceApproval`, `UserTask_Procurement`) each carry an unsatisfiable
+`${false}` gateway condition, so they're structurally valid/deployable but can **only**
+ever be created via `trigger-activity`.
+
+**Step-by-step API walkthrough** (no UI needed — this is exactly what
+`CaseManagementProcessTest` automates):
+
+1. **Open a case** — creates the case process instance and its default SAM task:
+   ```bash
+   curl -X POST http://localhost:8080/api/camunda/process-instances/start \
+        -H "Content-Type: application/json" \
+        -d '{"processDefinitionKey": "caseManagementProcess"}'
+   ```
+   Copy `processInstanceId` from the response for the steps below.
+
+2. **See what's open right now:**
+   ```bash
+   curl "http://localhost:8080/api/camunda/tasks?processInstanceId=<processInstanceId>"
+   ```
+   Shows one task: SAM (`taskDefinitionKey: "UserTask_Sam"`).
+
+3. **Trigger Legal Review on demand:**
+   ```bash
+   curl -X POST http://localhost:8080/api/camunda/process-instances/<processInstanceId>/trigger-activity \
+        -H "Content-Type: application/json" \
+        -d '{"activityId": "UserTask_LegalReview"}'
+   ```
+   Copy the returned task's `id`. Querying tasks again now shows two: SAM and Legal Review.
+
+4. **Complete Legal Review** (existing generic task endpoint):
+   ```bash
+   curl -X POST http://localhost:8080/api/camunda/tasks/<legalReviewTaskId>/complete
+   ```
+   SAM remains open — nothing else needed to get "back to SAM".
+
+5. **Trigger any other task, in any order** — e.g. skip straight to Finance Approval:
+   ```bash
+   curl -X POST http://localhost:8080/api/camunda/process-instances/<processInstanceId>/trigger-activity \
+        -H "Content-Type: application/json" \
+        -d '{"activityId": "UserTask_FinanceApproval"}'
+   ```
+   Repeat steps 3–5 for `UserTask_BusinessConfirmation`, `UserTask_BusinessApproval`, and
+   `UserTask_Procurement` in whatever order the case needs — each is independent, and any
+   of them can be triggered more than once if needed.
+
+6. **Close the case** once everything needed is done:
+   ```bash
+   curl -X POST http://localhost:8080/api/camunda/process-instances/<processInstanceId>/cancel-activity \
+        -H "Content-Type: application/json" \
+        -d '{"activityId": "SubProcess_CaseTasks"}'
+   ```
+   Cancels SAM plus anything else still open, and the process instance completes
+   normally. Confirm with:
+   ```bash
+   curl http://localhost:8080/api/camunda/process-instances/<processInstanceId>
+   # -> "state": "COMPLETED"
+   ```
+
 ## Notes
 
 - The bundled `processes/sample-approval-process.bpmn` (key `sampleApprovalProcess`) is
