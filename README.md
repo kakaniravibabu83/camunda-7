@@ -489,14 +489,93 @@ ever be created via `trigger-activity`.
         -H "Content-Type: application/json" \
         -d '{"activityId": "SubProcess_CaseTasks"}'
    ```
-   Cancels SAM plus anything else still open, and the process instance completes
-   normally. Confirm with:
+   Cancels SAM plus anything else still open, and the process instance completes.
+   Confirm with:
    ```bash
    curl http://localhost:8080/api/camunda/process-instances/<processInstanceId>
-   # -> "state": "COMPLETED"
+   # -> "state": "INTERNALLY_TERMINATED"
    ```
+   (Camunda's correct label for a cancellation-driven close, as opposed to `COMPLETED`
+   which it reserves for reaching an end event through uninterrupted normal flow — the
+   case still closed correctly either way.)
+
+### 9. User & role management
+
+Standard CRUD for users and roles, independent of the Camunda engine (plain JPA/MySQL,
+same pattern as the `deployment_log` audit table). A user can be associated with any
+number of roles; roles are managed independently and referenced by id when assigning
+them to a user.
+
+**Roles** (`app_role` table — not `role`, since ROLE is a reserved word in H2):
+```
+POST   /api/roles           { "name": "ROLE_APPROVER", "description": "Can approve requests" }
+PUT    /api/roles/{id}      same body, full replacement
+DELETE /api/roles/{id}      409 if still assigned to any user — remove it from them first
+GET    /api/roles           list all
+```
+
+**Users** (`app_user` table):
+```
+POST   /api/users
+{
+  "firstName": "Jane", "lastName": "Doe", "phone": "+1-555-0100",
+  "email": "jane.doe@example.com", "businessUnit": "Operations",
+  "roleIds": [1, 2]
+}
+
+PUT    /api/users/{id}      same body — roleIds is a full replacement of the role set,
+                             not an add; omit/empty it to clear all roles
+DELETE /api/users/{id}
+GET    /api/users/{id}      -> user details with full role objects (not just ids)
+GET    /api/users           list all, each with their roles
+```
+
+Both `DELETE` endpoints return a confirmation body (`{ "id", "deleted", "message" }`)
+rather than `204 No Content`, per this feature's spec. Validation (required fields,
+email format, field length limits) returns `400` with a message naming every failed
+field; duplicate email/role name returns `409`; referencing an unknown role id in
+`roleIds` returns `400`.
+
+### 10. Groups — multiple users sharing one role
+
+`app_group` table. Each group is scoped to exactly **one** role, and can hold any
+number of users — but only users who **currently hold that role**. This is enforced on
+every create/update: adding a user who doesn't have the group's role returns `400`
+naming exactly which user(s) and why.
+
+```
+POST   /api/groups
+{
+  "name": "Legal Reviewers", "description": "Handles legal review tasks",
+  "roleId": 3, "userIds": [5, 8, 11]
+}
+
+PUT    /api/groups/{id}     same body — userIds is a full replacement of membership,
+                             not an add; omit/empty it to clear all members
+DELETE /api/groups/{id}     returns a confirmation body, same pattern as users/roles
+GET    /api/groups/{id}     -> role + members (compact: id/firstName/lastName/email —
+                             full role lists per member would be redundant here, since
+                             every member shares the group's own role)
+GET    /api/groups          list all
+```
+
+**Two integrity guards this introduces on the existing endpoints**, both returning
+`409` rather than corrupting a group or hitting a raw foreign-key constraint error:
+- `DELETE /api/roles/{id}` also now fails if any group is still scoped to that role.
+- `DELETE /api/users/{id}` also now fails if the user is still a member of any group.
+
+In both cases: update/delete the dependent group first (or update it to no longer
+reference the role/user), then the original delete succeeds.
+
+**Known limitation:** removing a role from a user via `PUT /api/users/{id}` does **not**
+check whether that user is a member of a group scoped to that role — it's possible to
+end up with a group member who no longer actually holds the group's role. Enforcing
+that would mean checking group membership on every user role change, which felt like
+more cross-cutting complexity than this feature asked for; flagging it here rather than
+leaving it a silent gap.
 
 ## Notes
+
 
 - The bundled `processes/sample-approval-process.bpmn` (key `sampleApprovalProcess`) is
   deployed automatically on startup — Camunda's Spring Boot starter auto-deploys any
