@@ -1,0 +1,28 @@
+meta {
+  name: Post-User
+  type: http
+  seq: 12
+}
+
+post {
+  url: http://localhost:8080/api/users
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "firstName": "SAM2",
+    "lastName": "SAM Role2",
+    "phone": "+1-555-0100",
+    "email": "jane.doe2-sam2@example.com",
+    "businessUnit": "Backoffice-Operations",
+    "roleIds": [2]
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

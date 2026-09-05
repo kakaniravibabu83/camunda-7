@@ -1,0 +1,35 @@
+meta {
+  name: Update-User
+  type: http
+  seq: 15
+}
+
+put {
+  url: http://localhost:8080/api/users/{1}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+      "id": 1,
+      "firstName": "Case",
+      "lastName": "Creator",
+      "phone": "+1-555-0100",
+      "email": "jane.doe@example.com",
+      "businessUnit": "Backoffice-Operations",
+      "roles": [
+        {
+          "id": 1,
+          "name": "ROLE_BK_OFFICER",
+          "description": "Back officer can create a new case."
+        }
+      ]
+    },
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

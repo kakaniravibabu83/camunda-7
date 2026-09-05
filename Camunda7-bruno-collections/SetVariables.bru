@@ -1,0 +1,25 @@
+meta {
+  name: SetVariables
+  type: http
+  seq: 6
+}
+
+post {
+  url: http://localhost:8080/api/camunda/process-instances/cbe29442-a0fd-11f1-992a-00ffb356ce41/variables
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "amount": 300.00,
+    "approved": true,
+    "done": "kakani"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

@@ -1,0 +1,17 @@
+meta {
+  name: Get Cases
+  type: http
+  seq: 24
+}
+
+get {
+  url: http://localhost:8080/api/cases
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

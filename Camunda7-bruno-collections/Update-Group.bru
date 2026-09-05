@@ -1,0 +1,26 @@
+meta {
+  name: Update-Group
+  type: http
+  seq: 19
+}
+
+put {
+  url: http://localhost:8080/api/groups
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "GROUP_SAM_TEAM",
+    "description": "Handles Groups of SAM Team members",
+    "roleId": 2,
+    "userIds": [4, 5, 6]
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

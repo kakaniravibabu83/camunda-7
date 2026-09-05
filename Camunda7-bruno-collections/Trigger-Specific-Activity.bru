@@ -1,0 +1,23 @@
+meta {
+  name: Trigger-Specific-Activity
+  type: http
+  seq: 8
+}
+
+post {
+  url: http://localhost:8080/api/camunda/process-instances/1c33da7f-a413-11f1-a185-00ffb356ce41/trigger-activity
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "activityId": "UserTask_BusinessApproval"
+  }'
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

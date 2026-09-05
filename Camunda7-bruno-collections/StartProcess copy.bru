@@ -12,9 +12,14 @@ post {
 
 body:json {
   {
-    "processDefinitionKey": "AmountCheck",
-    "businessKey": "ORDER-1008",
-    "variables": { "amount": 800, "approved": false, "requester": "jane" }
+    "processDefinitionKey": "caseManagementProcess",
+    "businessKey": "ORDER-1100",
+    "variables": {
+      "amount": 800,
+      "approved": false,
+      "requester": "jane",
+      "requestAmount": 1100
+    }
   }
 }
 

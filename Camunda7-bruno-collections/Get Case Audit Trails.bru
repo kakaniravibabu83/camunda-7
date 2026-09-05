@@ -1,0 +1,17 @@
+meta {
+  name: Get Case Audit Trails
+  type: http
+  seq: 25
+}
+
+get {
+  url: http://localhost:8080/api/cases/3/audit-trail
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

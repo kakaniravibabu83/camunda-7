@@ -1,0 +1,17 @@
+meta {
+  name: Get-Roles
+  type: http
+  seq: 10
+}
+
+get {
+  url: http://localhost:8080/api/roles
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}
