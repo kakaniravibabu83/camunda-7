@@ -1,5 +1,6 @@
 package com.example.camunda.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,17 +22,22 @@ import java.util.Map;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "Request body to start a process instance")
 public class StartProcessRequest {
 
     /** Process definition key, e.g. "sampleApprovalProcess". Starts the latest version. */
+    @Schema(description = "Process definition key to start the latest version", example = "sampleApprovalProcess")
     private String processDefinitionKey;
 
     /** Specific process definition id/version, e.g. "sampleApprovalProcess:2:abcd1234". */
+    @Schema(description = "Specific process definition ID to start a specific version", example = "sampleApprovalProcess:2:abcd1234")
     private String processDefinitionId;
 
     /** Optional business key correlated with the new process instance. */
+    @Schema(description = "Optional business key for the process instance", example = "ORDER-1001")
     private String businessKey;
 
     /** Optional process variables. May be null or empty. */
+    @Schema(description = "Optional process variables as key-value pairs", example = "{\"amount\": 250.75, \"approved\": false, \"requester\": \"jane\"}")
     private Map<String, Object> variables;
 }

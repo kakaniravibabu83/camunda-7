@@ -78,6 +78,8 @@ Once the password is set:
    - Camunda's own REST API: `http://localhost:8080/engine-rest/**`
    - Camunda Cockpit/Tasklist/Admin: `http://localhost:8080/camunda/` (login `admin` / `admin`)
    - Actuator: `http://localhost:8080/actuator/health`
+   - Swagger UI (API documentation): `http://localhost:8080/swagger-ui/index.html`
+   - OpenAPI JSON spec: `http://localhost:8080/v3/api-docs`
 
 Datasource credentials can also be overridden entirely with `DB_URL` if your MySQL isn't
 on `localhost:3306`.

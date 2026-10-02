@@ -1,5 +1,6 @@
 package com.example.camunda.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,7 +20,11 @@ import java.util.Map;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "Request to trigger an activity in a running process instance")
 public class TriggerActivityRequest {
+    @Schema(description = "BPMN element ID of the activity to trigger", example = "UserTask_LegalReview")
     private String activityId;
+
+    @Schema(description = "Optional variables to pass to the activity", example = "{\"note\": \"please expedite\"}")
     private Map<String, Object> variables;
 }
