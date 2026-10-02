@@ -1,5 +1,6 @@
 package com.example.camunda.controller;
 
+import com.example.camunda.dto.ActivityInstance;
 import com.example.camunda.dto.CancelActivityRequest;
 import com.example.camunda.dto.ProcessInstanceStatusResponse;
 import com.example.camunda.dto.StartProcessRequest;
@@ -15,7 +16,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
+import com.example.camunda.dto.ProcessInstanceModificationRequest;
+import com.example.camunda.dto.ProcessInstanceModificationResponse;
 import java.util.List;
 import java.util.Map;
 
@@ -53,7 +55,7 @@ public class ProcessInstanceController {
     /**
      * Add one or more new variables, or update the value of existing ones, on a running
      * process instance. Existing variables not included in the body are left untouched.
-     * Only works while the process instance is still active — 409 if it has already
+     * Only works while the process instance is still active ï¿½ 409 if it has already
      * ended.
      *
      * POST /api/camunda/process-instances/{processInstanceId}/variables
@@ -71,7 +73,7 @@ public class ProcessInstanceController {
     }
 
     /**
-     * Correlates a named BPMN message to a running process instance — a generic
+     * Correlates a named BPMN message to a running process instance ï¿½ a generic
      * building block for processes that model branches as message-triggered Receive
      * Tasks / message event sub-processes. {@code variables} is the message's payload
      * and is entirely optional. 409 if the process instance isn't currently able to
@@ -88,7 +90,7 @@ public class ProcessInstanceController {
     }
 
     /**
-     * Dynamically triggers any named activity in a running process instance on demand —
+     * Dynamically triggers any named activity in a running process instance on demand ï¿½
      * the mechanism behind letting an external caller (e.g. a case management UI, or,
      * until that UI exists, a direct API call) decide at runtime which task to create
      * next, in any order, any number of times, independent of the process definition's
@@ -97,7 +99,7 @@ public class ProcessInstanceController {
      * See {@code case-management-process.bpmn}: after starting a case (which
      * auto-creates a "SAM" task by default), call this repeatedly with activityId
      * "UserTask_BusinessConfirmation", "UserTask_LegalReview", "UserTask_BusinessApproval",
-     * "UserTask_FinanceApproval", or "UserTask_Procurement" — in whatever order — to
+     * "UserTask_FinanceApproval", or "UserTask_Procurement" ï¿½ in whatever order ï¿½ to
      * create each on demand.
      *
      * POST /api/camunda/process-instances/{processInstanceId}/trigger-activity
@@ -113,7 +115,7 @@ public class ProcessInstanceController {
      * Cancels all currently active instances of a named activity in a running process
      * instance, regardless of what's currently open inside it. Used e.g. to close a case
      * by cancelling its wrapping "case tasks" sub-process in one call, whatever tasks
-     * (SAM, or any of the five on-demand tasks) happen to be open at the time — the
+     * (SAM, or any of the five on-demand tasks) happen to be open at the time ï¿½ the
      * process instance then proceeds along that activity's own outgoing flow as normal.
      * <p>
      * See {@code case-management-process.bpmn}: to close a case,
@@ -126,5 +128,30 @@ public class ProcessInstanceController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void cancelActivity(@PathVariable String processInstanceId, @RequestBody CancelActivityRequest request) {
         processInstanceService.cancelActivity(processInstanceId, request.getActivityId());
+    }
+
+    /**
+     * Modifies a running process instance by executing modification instructions.
+     * Supports canceling activities, starting before/after activities, and starting transitions.
+     *
+     * POST /api/camunda/process-instances/{processInstanceId}/modification
+     */
+    @PostMapping("/api/camunda/process-instances/{processInstanceId}/modification")
+    @ResponseStatus(HttpStatus.OK)
+    public ProcessInstanceModificationResponse modifyProcessInstance(
+            @PathVariable String processInstanceId,
+            @RequestBody ProcessInstanceModificationRequest request) {
+        return processInstanceService.modifyProcessInstance(processInstanceId, request);
+    }
+
+    /**
+     * Retrieves the activity instance tree for a given process instance.
+     * Returns a hierarchical structure of all activity instances and transition instances.
+     *
+     * GET /api/camunda/process-instances/{processInstanceId}/activity-instances
+     */
+    @GetMapping("/api/camunda/process-instances/{processInstanceId}/activity-instances")
+    public ActivityInstance getActivityInstances(@PathVariable String processInstanceId) {
+        return processInstanceService.getActivityInstances(processInstanceId);
     }
 }

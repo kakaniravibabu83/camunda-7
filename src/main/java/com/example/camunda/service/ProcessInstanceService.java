@@ -1,26 +1,33 @@
 package com.example.camunda.service;
 
+import com.example.camunda.dto.ActivityInstance;
+import com.example.camunda.dto.Incident;
 import com.example.camunda.dto.ProcessInstanceStatusResponse;
 import com.example.camunda.dto.StartProcessRequest;
 import com.example.camunda.dto.StartProcessResponse;
 import com.example.camunda.dto.TaskInfo;
+import com.example.camunda.dto.TransitionInstance;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.camunda.bpm.engine.HistoryService;
 import org.camunda.bpm.engine.MismatchingMessageCorrelationException;
+import org.camunda.bpm.engine.ProcessEngineException;
 import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.history.HistoricProcessInstance;
 import org.camunda.bpm.engine.history.HistoricVariableInstance;
 import org.camunda.bpm.engine.runtime.MessageCorrelationBuilder;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
+import org.camunda.bpm.engine.runtime.ProcessInstanceModificationBuilder;
 import org.camunda.bpm.engine.task.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
-
+import com.example.camunda.dto.ProcessInstanceModificationRequest;
+import com.example.camunda.dto.ProcessInstanceModificationResponse;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,7 +101,7 @@ public class ProcessInstanceService {
      * Adds one or more new variables, or updates the value of existing ones, on an
      * ACTIVE process instance. Existing variables not present in the given map are left
      * untouched. Unlike {@link #getVariables}, this only works on process instances
-     * that haven't completed yet — {@link RuntimeService#setVariables} operates on a
+     * that haven't completed yet ï¿½ {@link RuntimeService#setVariables} operates on a
      * live execution, so there's nothing to write to once a process instance has ended.
      */
     public Map<String, Object> setVariables(String processInstanceId, Map<String, Object> variables) {
@@ -123,7 +130,7 @@ public class ProcessInstanceService {
     }
 
     /**
-     * Correlates a named BPMN message to a specific, already-running process instance —
+     * Correlates a named BPMN message to a specific, already-running process instance ï¿½
      * a generic building block for processes that model branches as message-triggered
      * Receive Tasks / message event sub-processes, letting an external caller decide at
      * runtime which message to send, in any order, any number of times, for as long as
@@ -133,7 +140,7 @@ public class ProcessInstanceService {
      * <p>
      * Throws {@link org.camunda.bpm.engine.MismatchingMessageCorrelationException}
      * (mapped centrally to 409 Conflict) if the process instance exists but isn't
-     * currently able to receive a message with this name — e.g. it has already ended,
+     * currently able to receive a message with this name ï¿½ e.g. it has already ended,
      * or it's not currently at a point in the flow that's waiting for it.
      */
     public void correlateMessage(String processInstanceId, String messageName, Map<String, Object> variables) {
@@ -160,7 +167,7 @@ public class ProcessInstanceService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Process instance '" + processInstanceId + "' is not currently able to receive message '"
                             + messageName + "' (it may have already ended, or may not currently be waiting for "
-                            + "this message — e.g. a previously triggered action hasn't been completed yet).");
+                            + "this message ï¿½ e.g. a previously triggered action hasn't been completed yet).");
         }
 
         log.info("Correlated message '{}' to process instance {}", messageName, processInstanceId);
@@ -171,7 +178,7 @@ public class ProcessInstanceService {
      * demand, via {@link RuntimeService#createProcessInstanceModification}. This is the
      * actual mechanism behind on-demand, UI-driven task creation: a case management UI
      * (or, until that UI exists, a direct API call) decides at runtime which activity
-     * to trigger, in any order, any number of times — completely independent of
+     * to trigger, in any order, any number of times ï¿½ completely independent of
      * whatever the process definition's own gateway/sequence-flow logic would normally
      * do. See {@code case-management-process.bpmn} for a full worked example: its five
      * named task branches all carry an unsatisfiable {@code ${false}} condition, so
@@ -213,9 +220,9 @@ public class ProcessInstanceService {
     /**
      * Cancels all currently active instances of a named activity in a running process
      * instance, via {@link RuntimeService#createProcessInstanceModification}. Used to
-     * force-complete a wrapping activity regardless of what's active inside it — e.g.
+     * force-complete a wrapping activity regardless of what's active inside it ï¿½ e.g.
      * closing out a case by cancelling its whole "case tasks" sub-process in one call,
-     * whatever tasks happen to be open inside it at the time — after which the process
+     * whatever tasks happen to be open inside it at the time ï¿½ after which the process
      * instance proceeds along the cancelled activity's own outgoing flow as normal.
      */
     public void cancelActivity(String processInstanceId, String activityId) {
@@ -258,7 +265,7 @@ public class ProcessInstanceService {
      * at start time. For processes that complete synchronously through several
      * cascading steps (e.g. a boundary event cancelling an activity and rerouting into
      * a Call Activity before reaching an end event), that in-memory snapshot can be
-     * stale even though the persisted state is fully consistent — so we re-check
+     * stale even though the persisted state is fully consistent ï¿½ so we re-check
      * directly instead.
      */
     private boolean isEnded(String processInstanceId) {
@@ -312,5 +319,190 @@ public class ProcessInstanceService {
                         HistoricVariableInstance::getName,
                         HistoricVariableInstance::getValue,
                         (a, b) -> b));
+    }
+
+    /**
+     * Modifies a running process instance by executing modification instructions.
+     * Supports canceling activities, starting before/after activities, and starting transitions.
+     */
+    public ProcessInstanceModificationResponse modifyProcessInstance(String processInstanceId,
+                                                                   ProcessInstanceModificationRequest request) {
+        if (!StringUtils.hasText(processInstanceId)) {
+            throw new IllegalArgumentException("'processInstanceId' is required.");
+        }
+
+        if (request.getInstructions() == null || request.getInstructions().isEmpty()) {
+            throw new IllegalArgumentException("'instructions' is required and must not be empty.");
+        }
+
+        requireActiveProcessInstance(processInstanceId);
+
+        try {
+            ProcessInstanceModificationBuilder builder = runtimeService.createProcessInstanceModification(processInstanceId);
+
+            for (ProcessInstanceModificationRequest.ModificationInstruction instruction : request.getInstructions()) {
+                switch (instruction.getType()) {
+                    case "cancel":
+                        if (StringUtils.hasText(instruction.getActivityInstanceId())) {
+                            builder.cancelActivityInstance(instruction.getActivityInstanceId());
+                        } else if (StringUtils.hasText(instruction.getTransitionInstanceId())) {
+                            builder.cancelTransitionInstance(instruction.getTransitionInstanceId());
+                        } else if (StringUtils.hasText(instruction.getActivityId())) {
+                            builder.cancelAllForActivity(instruction.getActivityId());
+                        }
+                        break;
+                    case "startBeforeActivity":
+                        if (StringUtils.hasText(instruction.getAncestorActivityInstanceId())) {
+                            builder.startBeforeActivity(instruction.getActivityId(), instruction.getAncestorActivityInstanceId());
+                        } else {
+                            builder.startBeforeActivity(instruction.getActivityId());
+                        }
+                        break;
+                    case "startAfterActivity":
+                        if (StringUtils.hasText(instruction.getAncestorActivityInstanceId())) {
+                            builder.startAfterActivity(instruction.getActivityId(), instruction.getAncestorActivityInstanceId());
+                        } else {
+                            builder.startAfterActivity(instruction.getActivityId());
+                        }
+                        break;
+                    case "startTransition":
+                        if (StringUtils.hasText(instruction.getAncestorActivityInstanceId())) {
+                            builder.startTransition(instruction.getTransitionId(), instruction.getAncestorActivityInstanceId());
+                        } else {
+                            builder.startTransition(instruction.getTransitionId());
+                        }
+                        break;
+                    default:
+                        throw new IllegalArgumentException("Invalid instruction type: " + instruction.getType());
+                }
+
+                if (instruction.getVariables() != null && !instruction.getVariables().isEmpty()) {
+                    runtimeService.setVariables(processInstanceId, instruction.getVariables());
+                }
+            }
+
+            boolean skipCustomListeners = Boolean.TRUE.equals(request.getSkipCustomListeners());
+            boolean skipIoMappings = Boolean.TRUE.equals(request.getSkipIoMappings());
+            builder.execute(skipCustomListeners, skipIoMappings);
+
+            log.info("Modified process instance {} with {} instruction(s)",
+                    processInstanceId, request.getInstructions().size());
+
+            return ProcessInstanceModificationResponse.builder()
+                    .processInstanceId(processInstanceId)
+                    .message("Process instance modified successfully")
+                    .build();
+
+        } catch (ProcessEngineException ex) {
+            log.error("Failed to modify process instance {}", processInstanceId, ex);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Failed to modify process instance: " + ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * Retrieves the activity instance tree for a given process instance.
+     * Returns a hierarchical structure of all activity instances and transition instances.
+     */
+    public ActivityInstance getActivityInstances(String processInstanceId) {
+        if (!StringUtils.hasText(processInstanceId)) {
+            throw new IllegalArgumentException("'processInstanceId' is required.");
+        }
+
+        boolean existsInHistory = historyService.createHistoricProcessInstanceQuery()
+                .processInstanceId(processInstanceId)
+                .count() > 0;
+        if (!existsInHistory) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No process instance found with id '" + processInstanceId + "'.");
+        }
+
+        try {
+            org.camunda.bpm.engine.runtime.ActivityInstance camundaActivityInstance = runtimeService.getActivityInstance(processInstanceId);
+            return convertToActivityInstance(camundaActivityInstance);
+        } catch (ProcessEngineException ex) {
+            log.error("Failed to get activity instances for process instance {}", processInstanceId, ex);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Failed to get activity instances: " + ex.getMessage(), ex);
+        }
+    }
+
+    private ActivityInstance convertToActivityInstance(org.camunda.bpm.engine.runtime.ActivityInstance camundaInstance) {
+        if (camundaInstance == null) {
+            return null;
+        }
+
+        ActivityInstance dto = ActivityInstance.builder()
+                .id(camundaInstance.getId())
+                .parentActivityInstanceId(camundaInstance.getParentActivityInstanceId())
+                .activityId(camundaInstance.getActivityId())
+                .activityType(camundaInstance.getActivityType())
+                .processInstanceId(camundaInstance.getProcessInstanceId())
+                .processDefinitionId(camundaInstance.getProcessDefinitionId())
+                .executionIds(camundaInstance.getExecutionIds() != null ? Arrays.asList(camundaInstance.getExecutionIds()) : null)
+                .activityName(camundaInstance.getActivityName())
+                .incidentIds(camundaInstance.getIncidentIds() != null ? Arrays.asList(camundaInstance.getIncidentIds()) : null)
+                .build();
+
+        if (camundaInstance.getChildActivityInstances() != null) {
+            List<ActivityInstance> childActivities = Arrays.stream(camundaInstance.getChildActivityInstances())
+                    .map(this::convertToActivityInstance)
+                    .collect(Collectors.toList());
+            dto.setChildActivityInstances(childActivities);
+        }
+
+        if (camundaInstance.getChildTransitionInstances() != null) {
+            List<TransitionInstance> childTransitions = Arrays.stream(camundaInstance.getChildTransitionInstances())
+                    .map(this::convertToTransitionInstance)
+                    .collect(Collectors.toList());
+            dto.setChildTransitionInstances(childTransitions);
+        }
+
+        if (camundaInstance.getIncidents() != null) {
+            List<Incident> incidents = Arrays.stream(camundaInstance.getIncidents())
+                    .map(this::convertToIncident)
+                    .collect(Collectors.toList());
+            dto.setIncidents(incidents);
+        }
+
+        return dto;
+    }
+
+    private TransitionInstance convertToTransitionInstance(org.camunda.bpm.engine.runtime.TransitionInstance camundaInstance) {
+        if (camundaInstance == null) {
+            return null;
+        }
+
+        TransitionInstance dto = TransitionInstance.builder()
+                .id(camundaInstance.getId())
+                .parentActivityInstanceId(camundaInstance.getParentActivityInstanceId())
+                .activityId(camundaInstance.getActivityId())
+                .activityType(camundaInstance.getActivityType())
+                .processInstanceId(camundaInstance.getProcessInstanceId())
+                .processDefinitionId(camundaInstance.getProcessDefinitionId())
+                .executionId(camundaInstance.getExecutionId())
+                .activityName(camundaInstance.getActivityName())
+                .incidentIds(camundaInstance.getIncidentIds() != null ? Arrays.asList(camundaInstance.getIncidentIds()) : null)
+                .build();
+
+        if (camundaInstance.getIncidents() != null) {
+            List<Incident> incidents = Arrays.stream(camundaInstance.getIncidents())
+                    .map(this::convertToIncident)
+                    .collect(Collectors.toList());
+            dto.setIncidents(incidents);
+        }
+
+        return dto;
+    }
+
+    private Incident convertToIncident(org.camunda.bpm.engine.runtime.Incident camundaIncident) {
+        if (camundaIncident == null) {
+            return null;
+        }
+
+        return Incident.builder()
+                .id(camundaIncident.getId())
+                .activityId(camundaIncident.getActivityId())
+                .build();
     }
 }

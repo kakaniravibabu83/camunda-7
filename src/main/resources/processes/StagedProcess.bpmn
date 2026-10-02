@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_SAM" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.50.1">
+  <bpmn:message id="Message_Stage1Ready" name="Stage1ReadyMessage" />
+  <bpmn:message id="Message_Stage1Idle" name="Stage1IdleMessage" />
+  <bpmn:message id="Message_Stage2Ready" name="Stage2ReadyMessage" />
+  <bpmn:message id="Message_Stage2Idle" name="Stage2IdleMessage" />
+  <bpmn:message id="Message_Stage3Idle" name="Stage3IdleMessage" />
+  <bpmn:message id="Message_CaseClose" name="CaseCloseMessage" />
+  <bpmn:process id="StagedProcess" name="Staged Process" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1" name="Process Instance Created">
+      <bpmn:outgoing>Flow_Start_To_Fork</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Gateway_Fork" name="Open Case">
+      <bpmn:incoming>Flow_Start_To_Fork</bpmn:incoming>
+      <bpmn:outgoing>Flow_Fork_To_SamTeam</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Fork_To_Stage1</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:sequenceFlow id="Flow_Start_To_Fork" sourceRef="StartEvent_1" targetRef="Gateway_Fork" />
+    <bpmn:userTask id="UserTask_SamTeam" name="SAM Team" camunda:candidateGroups="SAM_Team">
+      <bpmn:documentation>Stays open for the life of the case. SAM team checks that all tasks they care about are complete, then either (a) leaves this open and keeps triggering tasks in the current stage via API, or (b) completes this task to close the case. Completing this task also correlates CaseCloseMessage (via the API layer), which cancels whichever stage is currently open through its interrupting boundary event, so both branches reach EndEvent_CaseClosed together and the process instance completes naturally.</bpmn:documentation>
+      <bpmn:incoming>Flow_Fork_To_SamTeam</bpmn:incoming>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_Fork_To_SamTeam" sourceRef="Gateway_Fork" targetRef="UserTask_SamTeam" />
+    <bpmn:sequenceFlow id="Flow_Fork_To_Stage1" sourceRef="Gateway_Fork" targetRef="Stage_1" />
+    <bpmn:subProcess id="Stage_1" name="Stage 1">
+      <bpmn:incoming>Flow_Fork_To_Stage1</bpmn:incoming>
+      <bpmn:startEvent id="Stage_1_Start" name="Stage Opened">
+        <bpmn:outgoing>Stage_1_Flow_StartToWait</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:receiveTask id="Stage_1_KeepAlive" name="Stage Active (kept alive)" messageRef="Message_Stage1Idle">
+        <bpmn:incoming>Stage_1_Flow_StartToWait</bpmn:incoming>
+        <bpmn:outgoing>Stage_1_Flow_WaitToEnd</bpmn:outgoing>
+      </bpmn:receiveTask>
+      <bpmn:endEvent id="Stage_1_End">
+        <bpmn:incoming>Stage_1_Flow_WaitToEnd</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Stage_1_Flow_StartToWait" sourceRef="Stage_1_Start" targetRef="Stage_1_KeepAlive" />
+      <bpmn:sequenceFlow id="Stage_1_Flow_WaitToEnd" sourceRef="Stage_1_KeepAlive" targetRef="Stage_1_End" />
+      <bpmn:userTask id="Stage1_Task_A" name="Stage 1 - Task A" camunda:candidateGroups="SAM_Team">
+        <bpmn:documentation>Triggered on demand via Process Instance Modification API, scoped to this Stage 1 sub-process instance. SAM team's sole choice - any task, any order, any count, any time. Once this stage is completed and the next stage opens (or the case is closed), this stage is closed and can no longer be triggered.</bpmn:documentation>
+      </bpmn:userTask>
+      <bpmn:userTask id="Stage1_Task_B" name="Stage 1 - Task B" camunda:candidateGroups="SAM_Team">
+        <bpmn:documentation>Triggered on demand via Process Instance Modification API, scoped to this Stage 1 sub-process instance. SAM team's sole choice - any task, any order, any count, any time. Once this stage is completed and the next stage opens (or the case is closed), this stage is closed and can no longer be triggered.</bpmn:documentation>
+      </bpmn:userTask>
+      <bpmn:userTask id="Stage1_Task_C" name="Stage 1 - Task C" camunda:candidateGroups="SAM_Team">
+        <bpmn:documentation>Triggered on demand via Process Instance Modification API, scoped to this Stage 1 sub-process instance. SAM team's sole choice - any task, any order, any count, any time. Once this stage is completed and the next stage opens (or the case is closed), this stage is closed and can no longer be triggered.</bpmn:documentation>
+      </bpmn:userTask>
+    </bpmn:subProcess>
+    <bpmn:boundaryEvent id="Boundary_Stage_1_Ready" name="Stage Complete" attachedToRef="Stage_1">
+      <bpmn:outgoing>Flow_Stage_1_Boundary_Out</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Boundary_Stage_1_Ready_MsgDef" messageRef="Message_Stage1Ready" />
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="Flow_Stage_1_Boundary_Out" sourceRef="Boundary_Stage_1_Ready" targetRef="Stage_2" />
+    <bpmn:subProcess id="Stage_2" name="Stage 2">
+      <bpmn:incoming>Flow_Stage_1_Boundary_Out</bpmn:incoming>
+      <bpmn:startEvent id="Stage_2_Start" name="Stage Opened">
+        <bpmn:outgoing>Stage_2_Flow_StartToWait</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:receiveTask id="Stage_2_KeepAlive" name="Stage Active (kept alive)" messageRef="Message_Stage2Idle">
+        <bpmn:incoming>Stage_2_Flow_StartToWait</bpmn:incoming>
+        <bpmn:outgoing>Stage_2_Flow_WaitToEnd</bpmn:outgoing>
+      </bpmn:receiveTask>
+      <bpmn:endEvent id="Stage_2_End">
+        <bpmn:incoming>Stage_2_Flow_WaitToEnd</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Stage_2_Flow_StartToWait" sourceRef="Stage_2_Start" targetRef="Stage_2_KeepAlive" />
+      <bpmn:sequenceFlow id="Stage_2_Flow_WaitToEnd" sourceRef="Stage_2_KeepAlive" targetRef="Stage_2_End" />
+      <bpmn:userTask id="Stage2_Task_A" name="Stage 2 - Task A" camunda:candidateGroups="SAM_Team">
+        <bpmn:documentation>Triggered on demand via Process Instance Modification API, scoped to this Stage 2 sub-process instance. SAM team's sole choice - any task, any order, any count, any time. Once this stage is completed and the next stage opens (or the case is closed), this stage is closed and can no longer be triggered.</bpmn:documentation>
+      </bpmn:userTask>
+      <bpmn:userTask id="Stage2_Task_B" name="Stage 2 - Task B" camunda:candidateGroups="SAM_Team">
+        <bpmn:documentation>Triggered on demand via Process Instance Modification API, scoped to this Stage 2 sub-process instance. SAM team's sole choice - any task, any order, any count, any time. Once this stage is completed and the next stage opens (or the case is closed), this stage is closed and can no longer be triggered.</bpmn:documentation>
+      </bpmn:userTask>
+      <bpmn:userTask id="Stage2_Task_C" name="Stage 2 - Task C" camunda:candidateGroups="SAM_Team">
+        <bpmn:documentation>Triggered on demand via Process Instance Modification API, scoped to this Stage 2 sub-process instance. SAM team's sole choice - any task, any order, any count, any time. Once this stage is completed and the next stage opens (or the case is closed), this stage is closed and can no longer be triggered.</bpmn:documentation>
+      </bpmn:userTask>
+    </bpmn:subProcess>
+    <bpmn:boundaryEvent id="Boundary_Stage_2_Ready" name="Stage Complete" attachedToRef="Stage_2">
+      <bpmn:outgoing>Flow_Stage_2_Boundary_Out</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Boundary_Stage_2_Ready_MsgDef" messageRef="Message_Stage2Ready" />
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="Flow_Stage_2_Boundary_Out" sourceRef="Boundary_Stage_2_Ready" targetRef="Stage_3" />
+    <bpmn:subProcess id="Stage_3" name="Stage 3">
+      <bpmn:incoming>Flow_Stage_2_Boundary_Out</bpmn:incoming>
+      <bpmn:startEvent id="Stage_3_Start" name="Stage Opened">
+        <bpmn:outgoing>Stage_3_Flow_StartToWait</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:receiveTask id="Stage_3_KeepAlive" name="Stage Active (kept alive)" messageRef="Message_Stage3Idle">
+        <bpmn:incoming>Stage_3_Flow_StartToWait</bpmn:incoming>
+        <bpmn:outgoing>Stage_3_Flow_WaitToEnd</bpmn:outgoing>
+      </bpmn:receiveTask>
+      <bpmn:endEvent id="Stage_3_End">
+        <bpmn:incoming>Stage_3_Flow_WaitToEnd</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Stage_3_Flow_StartToWait" sourceRef="Stage_3_Start" targetRef="Stage_3_KeepAlive" />
+      <bpmn:sequenceFlow id="Stage_3_Flow_WaitToEnd" sourceRef="Stage_3_KeepAlive" targetRef="Stage_3_End" />
+      <bpmn:userTask id="Stage3_Task_A" name="Stage 3 - Task A" camunda:candidateGroups="SAM_Team">
+        <bpmn:documentation>Triggered on demand via Process Instance Modification API, scoped to this Stage 3 sub-process instance. SAM team's sole choice - any task, any order, any count, any time. Once this stage is completed and the next stage opens (or the case is closed), this stage is closed and can no longer be triggered.</bpmn:documentation>
+      </bpmn:userTask>
+      <bpmn:userTask id="Stage3_Task_B" name="Stage 3 - Task B" camunda:candidateGroups="SAM_Team">
+        <bpmn:documentation>Triggered on demand via Process Instance Modification API, scoped to this Stage 3 sub-process instance. SAM team's sole choice - any task, any order, any count, any time. Once this stage is completed and the next stage opens (or the case is closed), this stage is closed and can no longer be triggered.</bpmn:documentation>
+      </bpmn:userTask>
+      <bpmn:userTask id="Stage3_Task_C" name="Stage 3 - Task C" camunda:candidateGroups="SAM_Team">
+        <bpmn:documentation>Triggered on demand via Process Instance Modification API, scoped to this Stage 3 sub-process instance. SAM team's sole choice - any task, any order, any count, any time. Once this stage is completed and the next stage opens (or the case is closed), this stage is closed and can no longer be triggered.</bpmn:documentation>
+      </bpmn:userTask>
+    </bpmn:subProcess>
+    <bpmn:boundaryEvent id="Boundary_Stage_3_Ready" name="Stage Complete" attachedToRef="Stage_3">
+      <bpmn:outgoing>Flow_17u7abv</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_1y84j0p" messageRef="Message_32qq2tc" />
+    </bpmn:boundaryEvent>
+    <bpmn:parallelGateway id="Gateway_0imjsbj">
+      <bpmn:incoming>Flow_17706dx</bpmn:incoming>
+      <bpmn:incoming>Flow_17u7abv</bpmn:incoming>
+      <bpmn:outgoing>Flow_0vo428k</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:sequenceFlow id="Flow_17706dx" sourceRef="Event_0l7heju" targetRef="Gateway_0imjsbj" />
+    <bpmn:endEvent id="Event_00r8vlm">
+      <bpmn:incoming>Flow_0vo428k</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_0vo428k" sourceRef="Gateway_0imjsbj" targetRef="Event_00r8vlm" />
+    <bpmn:sequenceFlow id="Flow_17u7abv" sourceRef="Boundary_Stage_3_Ready" targetRef="Gateway_0imjsbj" />
+    <bpmn:boundaryEvent id="Event_0l7heju" name="Case Closed" attachedToRef="UserTask_SamTeam">
+      <bpmn:outgoing>Flow_17706dx</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_0w5y6c3" messageRef="Message_2ekutam" />
+    </bpmn:boundaryEvent>
+  </bpmn:process>
+  <bpmn:message id="Message_32qq2tc" name="Stage3ReadyMessage" />
+  <bpmn:message id="Message_2ekutam" name="CaseCloseMessage" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="StagedProcess">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="170" y="282" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="146" y="318" width="85" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Fork_di" bpmnElement="Gateway_Fork">
+        <dc:Bounds x="250" y="275" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="247" y="325" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_SamTeam_di" bpmnElement="UserTask_SamTeam">
+        <dc:Bounds x="400" y="100" width="130" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_00r8vlm_di" bpmnElement="Event_00r8vlm">
+        <dc:Bounds x="2222" y="402" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0gvwgll_di" bpmnElement="Gateway_0imjsbj">
+        <dc:Bounds x="2135" y="395" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage_1_di" bpmnElement="Stage_1" isExpanded="true">
+        <dc:Bounds x="400" y="250" width="480" height="340" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage_1_Start_di" bpmnElement="Stage_1_Start">
+        <dc:Bounds x="430" y="281" width="28" height="28" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="409" y="309" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage_1_KeepAlive_di" bpmnElement="Stage_1_KeepAlive">
+        <dc:Bounds x="498" y="268" width="130" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage_1_End_di" bpmnElement="Stage_1_End">
+        <dc:Bounds x="668" y="281" width="28" height="28" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage1_Task_A_di" bpmnElement="Stage1_Task_A">
+        <dc:Bounds x="440" y="370" width="150" height="65" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage1_Task_B_di" bpmnElement="Stage1_Task_B">
+        <dc:Bounds x="440" y="448" width="150" height="65" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage1_Task_C_di" bpmnElement="Stage1_Task_C">
+        <dc:Bounds x="440" y="526" width="150" height="65" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Stage_1_Flow_StartToWait_di" bpmnElement="Stage_1_Flow_StartToWait">
+        <di:waypoint x="458" y="295" />
+        <di:waypoint x="498" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Stage_1_Flow_WaitToEnd_di" bpmnElement="Stage_1_Flow_WaitToEnd">
+        <di:waypoint x="628" y="295" />
+        <di:waypoint x="668" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Stage_3_di" bpmnElement="Stage_3" isExpanded="true">
+        <dc:Bounds x="1540" y="250" width="480" height="340" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage_3_Start_di" bpmnElement="Stage_3_Start">
+        <dc:Bounds x="1570" y="281" width="28" height="28" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1549" y="309" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage_3_KeepAlive_di" bpmnElement="Stage_3_KeepAlive">
+        <dc:Bounds x="1638" y="268" width="130" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage_3_End_di" bpmnElement="Stage_3_End">
+        <dc:Bounds x="1808" y="281" width="28" height="28" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage3_Task_A_di" bpmnElement="Stage3_Task_A">
+        <dc:Bounds x="1580" y="370" width="150" height="65" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage3_Task_B_di" bpmnElement="Stage3_Task_B">
+        <dc:Bounds x="1580" y="448" width="150" height="65" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage3_Task_C_di" bpmnElement="Stage3_Task_C">
+        <dc:Bounds x="1580" y="526" width="150" height="65" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Stage_3_Flow_StartToWait_di" bpmnElement="Stage_3_Flow_StartToWait">
+        <di:waypoint x="1598" y="295" />
+        <di:waypoint x="1638" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Stage_3_Flow_WaitToEnd_di" bpmnElement="Stage_3_Flow_WaitToEnd">
+        <di:waypoint x="1768" y="295" />
+        <di:waypoint x="1808" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Stage_2_di" bpmnElement="Stage_2" isExpanded="true">
+        <dc:Bounds x="980" y="250" width="480" height="340" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage_2_Start_di" bpmnElement="Stage_2_Start">
+        <dc:Bounds x="1010" y="281" width="28" height="28" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="989" y="309" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage_2_KeepAlive_di" bpmnElement="Stage_2_KeepAlive">
+        <dc:Bounds x="1078" y="268" width="130" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage_2_End_di" bpmnElement="Stage_2_End">
+        <dc:Bounds x="1248" y="281" width="28" height="28" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage2_Task_A_di" bpmnElement="Stage2_Task_A">
+        <dc:Bounds x="1020" y="370" width="150" height="65" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage2_Task_B_di" bpmnElement="Stage2_Task_B">
+        <dc:Bounds x="1020" y="448" width="150" height="65" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stage2_Task_C_di" bpmnElement="Stage2_Task_C">
+        <dc:Bounds x="1020" y="526" width="150" height="65" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Stage_2_Flow_StartToWait_di" bpmnElement="Stage_2_Flow_StartToWait">
+        <di:waypoint x="1038" y="295" />
+        <di:waypoint x="1078" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Stage_2_Flow_WaitToEnd_di" bpmnElement="Stage_2_Flow_WaitToEnd">
+        <di:waypoint x="1208" y="295" />
+        <di:waypoint x="1248" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Boundary_Stage_1_Ready_di" bpmnElement="Boundary_Stage_1_Ready">
+        <dc:Bounds x="550" y="572" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="620" y="643" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Boundary_Stage_2_Ready_di" bpmnElement="Boundary_Stage_2_Ready">
+        <dc:Bounds x="1130" y="572" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1210" y="643" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0legs1j_di" bpmnElement="Boundary_Stage_3_Ready">
+        <dc:Bounds x="2002" y="402" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2050" y="433" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_00dwaij_di" bpmnElement="Event_0l7heju">
+        <dc:Bounds x="462" y="162" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="628" y="183" width="63" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_To_Fork_di" bpmnElement="Flow_Start_To_Fork">
+        <di:waypoint x="206" y="300" />
+        <di:waypoint x="250" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Fork_To_SamTeam_di" bpmnElement="Flow_Fork_To_SamTeam">
+        <di:waypoint x="275" y="275" />
+        <di:waypoint x="275" y="140" />
+        <di:waypoint x="400" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Fork_To_Stage1_di" bpmnElement="Flow_Fork_To_Stage1">
+        <di:waypoint x="275" y="325" />
+        <di:waypoint x="275" y="420" />
+        <di:waypoint x="400" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Stage_2_Boundary_Out_di" bpmnElement="Flow_Stage_2_Boundary_Out">
+        <di:waypoint x="1148" y="608" />
+        <di:waypoint x="1148" y="640" />
+        <di:waypoint x="1500" y="640" />
+        <di:waypoint x="1500" y="420" />
+        <di:waypoint x="1540" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Stage_1_Boundary_Out_di" bpmnElement="Flow_Stage_1_Boundary_Out">
+        <di:waypoint x="568" y="608" />
+        <di:waypoint x="568" y="640" />
+        <di:waypoint x="950" y="640" />
+        <di:waypoint x="950" y="420" />
+        <di:waypoint x="980" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_17706dx_di" bpmnElement="Flow_17706dx">
+        <di:waypoint x="480" y="198" />
+        <di:waypoint x="480" y="210" />
+        <di:waypoint x="2160" y="210" />
+        <di:waypoint x="2160" y="395" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0vo428k_di" bpmnElement="Flow_0vo428k">
+        <di:waypoint x="2185" y="420" />
+        <di:waypoint x="2222" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_17u7abv_di" bpmnElement="Flow_17u7abv">
+        <di:waypoint x="2038" y="420" />
+        <di:waypoint x="2135" y="420" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
